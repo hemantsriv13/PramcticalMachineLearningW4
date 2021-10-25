@@ -1,0 +1,103 @@
+---
+title: "PML_week4"
+author: "Hemant"
+date: "25/10/2021"
+output: html_document
+---
+## Project Overview
+
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement – a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. The goal of your project is to predict the manner in which they did the exercise. This is the "classe" variable in the training set.
+
+We have the following datasets available
+
+The training data for this project are available here:
+<https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv>
+
+The test data are available here:
+<https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv>
+
+
+
+```{r}
+library(knitr)
+knitr::opts_chunk$set(cache=TRUE, cache.lazy = FALSE, echo = TRUE, warning = FALSE, message = FALSE, results = 'hide', dpi = 180, fig.height = 5, fig.width = 8)
+library(caret)
+library(rpart)
+library(randomForest)
+library(rpart.plot)
+```
+
+### Data Pre-prcessing
+
+We wish to remove the following:
+1. NA value observations
+1. Any character type columns
+1. Any other columns of no importance
+
+```{r echo=TRUE, results='hide'}
+training<-read.csv("C:/Users/heman/Downloads/pml-training (1).csv", na.strings = c("NA", "#DIV/0!", ""))
+testing<-read.csv("C:/Users/heman/Downloads/pml-testing.csv", na.strings = c("NA", "#DIV/0!", ""))
+training<-training[,colSums(is.na(training))==0]
+testing<-testing[,colSums(is.na(testing))==0]
+training<-training[,-c(1:8)]
+testing<-testing[,-c(1:8)]
+```
+
+```{r cars}
+colnames(training)
+colnames(testing)
+```
+
+### Creating Data Patitions
+
+Creating data partitions to train and validate the models on. 
+
+```{r DataPartitions}
+inTrain<-createDataPartition(training$classe, p=0.6, list=FALSE)
+train_set<-training[inTrain,]
+test_set<-training[-inTrain,]
+dim(train_set)
+dim(test_set)
+colnames(train_set)
+colnames(test_set)
+
+```
+
+### Decision Tree
+
+```{r}
+model_DT<-train(classe~., data=train_set, method="rpart")
+pred_DT<-predict(model_DT, test_set)
+confusionMatrix(factor(pred_DT, levels = c("A","B","C","D","E")), factor(test_set$classe, levels = c("A","B","C","D","E")))
+```
+
+```{r}
+rpart.plot(model_DT$finalModel, roundint = FALSE)
+```
+
+It can be observed that the accuracy of predictions is 50% and hence low.
+
+### Random Forest Approach
+
+```{r}
+model_RF<-train(classe~., data = train_set, method="rf", ntree=10)
+pred_RF<-predict(model_RF, test_set)
+pred_RF_CI<-confusionMatrix(factor(pred_RF, levels = c("A","B","C","D","E")), factor(test_set$classe, levels = c("A","B","C","D","E")))
+pred_RF_CI
+```
+
+```{r}
+plot(pred_RF_CI$table, col=pred_RF_CI$byClass, main=paste("RF with accuracy of ", round(pred_RF_CI$overall['Accuracy'],4)))
+```
+
+Using Random Forest, we can observe an accuracy of 98.36% which is desirable.
+
+
+### Applying the model to the actual testing data
+
+```{r}
+pred_mainTest<-predict(model_RF, testing)
+pred_mainTest
+```
+
+The above shows the final predictions of the model
